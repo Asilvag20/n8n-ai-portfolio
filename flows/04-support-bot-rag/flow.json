@@ -1,0 +1,12 @@
+{
+  "name": "04 - Support Bot RAG",
+  "nodes": [],
+  "connections": {},
+  "active": false,
+  "settings": {},
+  "tags": ["ai", "rag", "support", "chatbot"],
+  "meta": {
+    "description": "RAG-powered customer support chatbot with knowledge base",
+    "version": "1.0.0"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "01 - Lead Qualification AI",
+  "nodes": [],
+  "connections": {},
+  "active": false,
+  "settings": {},
+  "tags": ["ai", "leads", "qualification"],
+  "meta": {
+    "description": "AI-powered lead scoring and qualification workflow",
+    "version": "1.0.0"
+  }
+}

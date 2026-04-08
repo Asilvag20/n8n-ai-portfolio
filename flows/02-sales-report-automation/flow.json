@@ -1,0 +1,12 @@
+{
+  "name": "02 - Sales Report Automation",
+  "nodes": [],
+  "connections": {},
+  "active": false,
+  "settings": {},
+  "tags": ["ai", "sales", "reports", "automation"],
+  "meta": {
+    "description": "Automated weekly sales report generation with AI narration",
+    "version": "1.0.0"
+  }
+}

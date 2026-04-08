@@ -1,0 +1,12 @@
+{
+  "name": "03 - Competitor Monitor AI",
+  "nodes": [],
+  "connections": {},
+  "active": false,
+  "settings": {},
+  "tags": ["ai", "monitoring", "competitors"],
+  "meta": {
+    "description": "AI-powered competitor website monitoring and change summarization",
+    "version": "1.0.0"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "05 - Client Onboarding",
+  "nodes": [],
+  "connections": {},
+  "active": false,
+  "settings": {},
+  "tags": ["automation", "onboarding", "crm"],
+  "meta": {
+    "description": "End-to-end automated client onboarding sequence",
+    "version": "1.0.0"
+  }
+}
