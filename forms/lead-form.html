@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Free Consultation — AI Automation</title>
+
+  <!-- ============================================================
+       STYLES
+       Dark mode design with subtle gradients and smooth transitions.
+       Mobile-first approach with responsive breakpoints.
+  ============================================================ -->
+  <style>
+    /* ---------- Reset & base ---------- */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      background: #0d0f14;
+      background-image:
+        radial-gradient(ellipse at 20% 20%, rgba(99, 102, 241, 0.12) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 80%, rgba(16, 185, 129, 0.08) 0%, transparent 50%);
+      font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+      color: #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+
+    /* ---------- Card container ---------- */
+    .card {
+      width: 100%;
+      max-width: 560px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      padding: 2.5rem 2rem;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+    }
+
+    /* ---------- Header ---------- */
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .header .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(99, 102, 241, 0.15);
+      border: 1px solid rgba(99, 102, 241, 0.35);
+      color: #a5b4fc;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 100px;
+      margin-bottom: 1rem;
+    }
+
+    .header h1 {
+      font-size: clamp(1.4rem, 4vw, 1.9rem);
+      font-weight: 700;
+      line-height: 1.25;
+      background: linear-gradient(135deg, #e2e8f0 0%, #a5b4fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 0.5rem;
+    }
+
+    .header p {
+      color: #94a3b8;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    /* ---------- Form layout ---------- */
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 1.1rem;
+    }
+
+    /* Two-column row on wider screens */
+    .row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    @media (max-width: 480px) {
+      .row-2 { grid-template-columns: 1fr; }
+      .card { padding: 1.75rem 1.25rem; }
+    }
+
+    /* ---------- Field groups ---------- */
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    label {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #94a3b8;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    label .required {
+      color: #f87171;
+      margin-left: 3px;
+    }
+
+    label .optional {
+      color: #475569;
+      font-weight: 400;
+      text-transform: none;
+      font-size: 0.78rem;
+      letter-spacing: 0;
+    }
+
+    /* ---------- Inputs & selects ---------- */
+    input, select, textarea {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      color: #e2e8f0;
+      font-size: 0.95rem;
+      font-family: inherit;
+      padding: 0.7rem 0.9rem;
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+      outline: none;
+      width: 100%;
+    }
+
+    input::placeholder, textarea::placeholder {
+      color: #475569;
+    }
+
+    /* Focus state */
+    input:focus, select:focus, textarea:focus {
+      border-color: rgba(99, 102, 241, 0.6);
+      background: rgba(99, 102, 241, 0.07);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+    }
+
+    /* Error state */
+    input.error, select.error, textarea.error {
+      border-color: rgba(248, 113, 113, 0.6);
+      box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.1);
+    }
+
+    /* Select arrow fix */
+    select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%2394a3b8' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.9rem center;
+      padding-right: 2.2rem;
+      cursor: pointer;
+    }
+
+    select option {
+      background: #1e2330;
+      color: #e2e8f0;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 110px;
+      line-height: 1.6;
+    }
+
+    /* ---------- Inline field error messages ---------- */
+    .field-error {
+      font-size: 0.78rem;
+      color: #f87171;
+      display: none;
+      margin-top: 2px;
+    }
+
+    .field-error.visible { display: block; }
+
+    /* ---------- Submit button ---------- */
+    button[type="submit"] {
+      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 600;
+      padding: 0.85rem 1.5rem;
+      transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+      width: 100%;
+      margin-top: 0.5rem;
+      box-shadow: 0 4px 20px rgba(99, 102, 241, 0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    button[type="submit"]:hover:not(:disabled) {
+      opacity: 0.92;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 28px rgba(99, 102, 241, 0.5);
+    }
+
+    button[type="submit"]:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    button[type="submit"]:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* ---------- Loading spinner ---------- */
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .btn-text { transition: opacity 0.2s; }
+
+    /* Loading state */
+    button.loading .spinner { display: block; }
+    button.loading .btn-text { opacity: 0; position: absolute; }
+
+    /* ---------- Toast notifications ---------- */
+    #toast {
+      display: none;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 1rem 1.25rem;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      margin-top: 1rem;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    #toast.success {
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #6ee7b7;
+    }
+
+    #toast.error {
+      background: rgba(248, 113, 113, 0.1);
+      border: 1px solid rgba(248, 113, 113, 0.3);
+      color: #fca5a5;
+    }
+
+    #toast .toast-icon { font-size: 1.2rem; flex-shrink: 0; margin-top: 1px; }
+    #toast .toast-body strong { display: block; margin-bottom: 2px; }
+
+    /* ---------- Footer note ---------- */
+    .footer-note {
+      text-align: center;
+      font-size: 0.78rem;
+      color: #475569;
+      margin-top: 1.5rem;
+    }
+
+    .footer-note span {
+      color: #6366f1;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ============================================================
+       MAIN CARD
+  ============================================================ -->
+  <div class="card">
+
+    <!-- Header section -->
+    <div class="header">
+      <div class="badge">✦ AI-Powered</div>
+      <h1>Agenda una consultoría gratuita</h1>
+      <p>Cuéntanos tu desafío. Nuestra IA analizará tu caso y te contactaremos con una propuesta personalizada en menos de 2 horas.</p>
+    </div>
+
+    <!-- ============================================================
+         FORM
+         Each field is wrapped in .field for label + input + error msg.
+         The form submits via fetch() to the n8n webhook.
+    ============================================================ -->
+    <form id="leadForm" novalidate>
+
+      <!-- Row 1: Name + Email -->
+      <div class="row-2">
+        <div class="field">
+          <label for="name">Nombre completo <span class="required">*</span></label>
+          <input
+            type="text"
+            id="name"
+            name="name"
+            placeholder="Ana García"
+            autocomplete="name"
+          />
+          <span class="field-error" id="err-name">Ingresa tu nombre completo.</span>
+        </div>
+
+        <div class="field">
+          <label for="email">Email <span class="required">*</span></label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            placeholder="ana@empresa.com"
+            autocomplete="email"
+          />
+          <span class="field-error" id="err-email">Ingresa un email válido.</span>
+        </div>
+      </div>
+
+      <!-- Row 2: Company + Phone -->
+      <div class="row-2">
+        <div class="field">
+          <label for="company">Empresa <span class="required">*</span></label>
+          <input
+            type="text"
+            id="company"
+            name="company"
+            placeholder="Mi Empresa SAS"
+            autocomplete="organization"
+          />
+          <span class="field-error" id="err-company">Ingresa el nombre de tu empresa.</span>
+        </div>
+
+        <div class="field">
+          <label for="phone">Teléfono <span class="optional">(opcional)</span></label>
+          <input
+            type="tel"
+            id="phone"
+            name="phone"
+            placeholder="+57 300 000 0000"
+            autocomplete="tel"
+          />
+        </div>
+      </div>
+
+      <!-- Row 3: Source dropdown -->
+      <div class="field">
+        <label for="source">¿Cómo nos encontraste? <span class="required">*</span></label>
+        <select id="source" name="source">
+          <option value="" disabled selected>Selecciona una opción…</option>
+          <option value="Website">Sitio web</option>
+          <option value="LinkedIn">LinkedIn</option>
+          <option value="Referido">Referido</option>
+          <option value="Otro">Otro</option>
+        </select>
+        <span class="field-error" id="err-source">Selecciona una opción.</span>
+      </div>
+
+      <!-- Row 4: Message -->
+      <div class="field">
+        <label for="message">¿Cuál es tu principal desafío? <span class="required">*</span></label>
+        <textarea
+          id="message"
+          name="message"
+          placeholder="Ej: Necesitamos automatizar el seguimiento de leads en nuestro CRM. Tenemos un equipo de 20 personas y perdemos oportunidades por falta de respuesta rápida…"
+        ></textarea>
+        <span class="field-error" id="err-message">Cuéntanos al menos tu desafío principal (mínimo 20 caracteres).</span>
+      </div>
+
+      <!-- Submit button -->
+      <button type="submit" id="submitBtn">
+        <!-- Spinner shown during loading state -->
+        <span class="spinner"></span>
+        <span class="btn-text">Solicitar consultoría gratuita →</span>
+      </button>
+
+    </form>
+
+    <!-- ============================================================
+         TOAST NOTIFICATION
+         Shown after submit: success (green) or error (red).
+         Populated dynamically by JS below.
+    ============================================================ -->
+    <div id="toast" role="alert">
+      <span class="toast-icon" id="toastIcon"></span>
+      <div class="toast-body">
+        <strong id="toastTitle"></strong>
+        <span id="toastMsg"></span>
+      </div>
+    </div>
+
+    <!-- Footer note -->
+    <p class="footer-note">
+      Powered by <span>n8n</span> + <span>Ollama AI</span> · Respuesta en &lt; 2 horas
+    </p>
+
+  </div><!-- /.card -->
+
+
+  <!-- ============================================================
+       JAVASCRIPT
+       1. Validation — checks required fields before submit
+       2. Submit — sends POST to n8n webhook via fetch()
+       3. UI state — loading spinner, success/error toast
+  ============================================================ -->
+  <script>
+    // ── Configuration ──────────────────────────────────────────
+    const WEBHOOK_URL = 'http://localhost:5678/webhook/new-lead';
+
+    // ── DOM references ──────────────────────────────────────────
+    const form       = document.getElementById('leadForm');
+    const submitBtn  = document.getElementById('submitBtn');
+    const toast      = document.getElementById('toast');
+    const toastIcon  = document.getElementById('toastIcon');
+    const toastTitle = document.getElementById('toastTitle');
+    const toastMsg   = document.getElementById('toastMsg');
+
+    // ── Validation rules ────────────────────────────────────────
+    // Each entry: { fieldId, errorId, test: value => boolean }
+    const validations = [
+      {
+        fieldId: 'name',
+        errorId: 'err-name',
+        test: v => v.trim().length >= 2
+      },
+      {
+        fieldId: 'email',
+        errorId: 'err-email',
+        test: v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())
+      },
+      {
+        fieldId: 'company',
+        errorId: 'err-company',
+        test: v => v.trim().length >= 2
+      },
+      {
+        fieldId: 'source',
+        errorId: 'err-source',
+        test: v => v !== ''
+      },
+      {
+        fieldId: 'message',
+        errorId: 'err-message',
+        test: v => v.trim().length >= 20
+      }
+    ];
+
+    // ── Validate all fields, return true if all pass ─────────────
+    function validateForm() {
+      let valid = true;
+
+      validations.forEach(({ fieldId, errorId, test }) => {
+        const field = document.getElementById(fieldId);
+        const error = document.getElementById(errorId);
+        const passes = test(field.value);
+
+        // Toggle error styles
+        field.classList.toggle('error', !passes);
+        error.classList.toggle('visible', !passes);
+
+        if (!passes) valid = false;
+      });
+
+      return valid;
+    }
+
+    // ── Clear field error on user input ─────────────────────────
+    validations.forEach(({ fieldId, errorId }) => {
+      document.getElementById(fieldId).addEventListener('input', () => {
+        document.getElementById(fieldId).classList.remove('error');
+        document.getElementById(errorId).classList.remove('visible');
+      });
+    });
+
+    // ── Show toast notification ──────────────────────────────────
+    function showToast(type, title, message) {
+      toast.className = type;          // 'success' | 'error'
+      toast.style.display = 'flex';
+      toastIcon.textContent  = type === 'success' ? '✅' : '❌';
+      toastTitle.textContent = title;
+      toastMsg.textContent   = message;
+    }
+
+    // ── Set loading state on button ──────────────────────────────
+    function setLoading(loading) {
+      submitBtn.disabled = loading;
+      submitBtn.classList.toggle('loading', loading);
+    }
+
+    // ── Form submit handler ──────────────────────────────────────
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      // 1. Run validation — abort if any field fails
+      if (!validateForm()) return;
+
+      // 2. Enter loading state
+      setLoading(true);
+      toast.style.display = 'none';
+
+      // 3. Build payload from form values
+      const payload = {
+        name:    document.getElementById('name').value.trim(),
+        email:   document.getElementById('email').value.trim(),
+        company: document.getElementById('company').value.trim(),
+        phone:   document.getElementById('phone').value.trim() || undefined,
+        source:  document.getElementById('source').value,
+        message: document.getElementById('message').value.trim()
+      };
+
+      // Remove undefined keys (phone is optional)
+      Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
+
+      try {
+        // 4. POST to n8n webhook
+        const response = await fetch(WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+          // 5a. Success — reset form and show confirmation
+          form.reset();
+          showToast(
+            'success',
+            '¡Solicitud recibida!',
+            'Nuestra IA ya está analizando tu caso. Te contactaremos con una propuesta en menos de 2 horas.'
+          );
+        } else {
+          // 5b. HTTP error from n8n
+          showToast(
+            'error',
+            'Algo salió mal.',
+            'El servidor no pudo procesar la solicitud. Por favor intenta de nuevo en un momento.'
+          );
+        }
+
+      } catch (err) {
+        // 5c. Network / connection error
+        showToast(
+          'error',
+          'Error de conexión.',
+          'No se pudo conectar con el servidor. Verifica tu conexión a internet e intenta de nuevo.'
+        );
+      } finally {
+        // 6. Always restore button
+        setLoading(false);
+      }
+    });
+  </script>
+
+</body>
+</html>
