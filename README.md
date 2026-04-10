@@ -60,7 +60,7 @@ I'm an AI Automation Engineer specializing in building intelligent workflows tha
 - **Tools I work with:** n8n, Make, Zapier, LangChain, OpenAI, Ollama
 - **Available for:** Freelance projects, consulting, full-time remote roles
 
-**Contact:** [GitHub @Asilvag20](https://github.com/Asilvag20) · [your-email@domain.com](#)
+**Contact:** [GitHub @Asilvag20](https://github.com/Asilvag20) · [cristian.1003@hotmail.com](#)
 
 ---
 
