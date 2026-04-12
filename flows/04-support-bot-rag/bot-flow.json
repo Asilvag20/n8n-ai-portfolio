@@ -1,0 +1,640 @@
+[
+  {
+    "id": "flow04Bot",
+    "name": "04 - Restaurant Support Bot",
+    "nodes": [
+      {
+        "parameters": { "updates": ["message"] },
+        "id": "bot-01",
+        "name": "Telegram Trigger — Clients",
+        "type": "n8n-nodes-base.telegramTrigger",
+        "typeVersion": 1.1,
+        "position": [-1600, 0],
+        "credentials": { "telegramApi": { "id": "TELEGRAM_CREDENTIAL_ID", "name": "Telegram Bot" } }
+      },
+      {
+        "parameters": {
+          "jsCode": "const message = $json.message || {};\nconst text = (message.text || '').trim();\nconst chatId = (message.chat?.id || '').toString();\nconst ownerId = ($env.TELEGRAM_OWNER_CHAT_ID || '').toString();\n\n// Skip owner messages with PDFs (handled by indexer)\nif (chatId === ownerId && message.document) return [];\n\n// Skip empty messages\nif (!text) return [];\n\nconst t = text.toLowerCase();\nlet intent = 'UNKNOWN';\n\nif (/^(hola|hey|buenas|buenos|buen|saludos|hi|hello)/i.test(t)) {\n  intent = 'GREETING';\n} else if (/\\b(pedir|pedido|quiero|domicilio|delivery|llevar|me trae|me da|me puede traer|encargar|para llevar)\\b/i.test(t)) {\n  intent = 'ORDER';\n} else if (/\\b(reserva|reservar|mesa|personas|fecha|aniversario|cumpleaños|celebración|evento|cena romántica)\\b/i.test(t)) {\n  intent = 'RESERVATION';\n} else if (/\\b(queja|problema|mal|frío|fría|tarde|insatisfecho|horrible|pésimo|nunca|decepcionante|reclamo|llegó mal|muy tarde|se demoró|cobr|equivoc)\\b/i.test(t)) {\n  intent = 'COMPLAINT';\n} else if (/\\b(gracias|excelente|delicioso|rico|buenísimo|genial|increíble|recomiendo|encantó|espectacular|el mejor|muy bueno|me gustó)\\b/i.test(t)) {\n  intent = 'FEEDBACK';\n} else if (/\\b(menú|menu|precio|vale|cuesta|tienes|tienen|hay|opciones|plato|comida|bebida|postre|entrada|vegano|vegetariano|sin gluten|especial|carta|especialidad|ajiaco|bandeja|caldo|sopa|ensalada|carne|pollo|pescado|pasta|pizza|postre|jugo|gaseosa|cerveza)\\b/i.test(t)) {\n  intent = 'MENU_QUERY';\n} else if (/\\b(hora|horario|abren|cierran|abierto|cerrado|cuando|dirección|dirección|ubicación|donde|cómo llegar|teléfono|contacto|parqueadero|parqueo|wifi|instagram|redes|pago|rappi|domicilios|aplicación|app)\\b/i.test(t)) {\n  intent = 'HOURS_INFO';\n}\n\nreturn [{ json: {\n  chat_id: chatId,\n  first_name: message.from?.first_name || 'Cliente',\n  username: message.from?.username || '',\n  text,\n  message_id: message.message_id,\n  intent,\n  timestamp: new Date().toISOString()\n} }];"
+        },
+        "id": "bot-02",
+        "name": "Detect Intent",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [-1400, 0],
+        "parameters": { "mode": "runOnceForEachItem" }
+      },
+      {
+        "parameters": {
+          "mode": "rules",
+          "rules": {
+            "values": [
+              {
+                "conditions": { "options": { "caseSensitive": true }, "conditions": [{ "leftValue": "={{ $json.intent }}", "rightValue": "GREETING", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" },
+                "renameOutput": true, "outputKey": "GREETING"
+              },
+              {
+                "conditions": { "options": { "caseSensitive": true }, "conditions": [{ "leftValue": "={{ $json.intent }}", "rightValue": "ORDER", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" },
+                "renameOutput": true, "outputKey": "ORDER"
+              },
+              {
+                "conditions": { "options": { "caseSensitive": true }, "conditions": [{ "leftValue": "={{ $json.intent }}", "rightValue": "RESERVATION", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" },
+                "renameOutput": true, "outputKey": "RESERVATION"
+              },
+              {
+                "conditions": { "options": { "caseSensitive": true }, "conditions": [{ "leftValue": "={{ $json.intent }}", "rightValue": "COMPLAINT", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" },
+                "renameOutput": true, "outputKey": "COMPLAINT"
+              },
+              {
+                "conditions": { "options": { "caseSensitive": true }, "conditions": [{ "leftValue": "={{ $json.intent }}", "rightValue": "FEEDBACK", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" },
+                "renameOutput": true, "outputKey": "FEEDBACK"
+              }
+            ]
+          },
+          "fallbackOutput": "extra"
+        },
+        "id": "bot-03",
+        "name": "Route by Intent",
+        "type": "n8n-nodes-base.switch",
+        "typeVersion": 3,
+        "position": [-1200, 0]
+      },
+
+      {
+        "parameters": {
+          "chatId": "={{ $json.chat_id }}",
+          "text": "=¡Hola {{ $json.first_name }}! 👋 Bienvenido a La Fogata 🍽️\n\nSoy tu asistente virtual. Puedo ayudarte con:\n📋 Consultar el menú y precios\n🕐 Horarios y ubicación\n📦 Hacer un pedido a domicilio\n📅 Reservar una mesa\n\n¿En qué te puedo ayudar?",
+          "additionalFields": {}
+        },
+        "id": "bot-04a",
+        "name": "Greeting Response",
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [-1000, -600],
+        "credentials": { "telegramApi": { "id": "TELEGRAM_CREDENTIAL_ID", "name": "Telegram Bot" } }
+      },
+
+      {
+        "parameters": {
+          "jsCode": "const data = $input.item.json;\nconst orderId = 'PED-' + Date.now().toString().slice(-6);\nreturn { json: {\n  ...data,\n  order_id: orderId,\n  order_text: data.text,\n  formatted_kitchen: `🍽️ *NUEVO PEDIDO ${orderId}*\\n⏰ ${new Date().toLocaleTimeString('es-CO')}\\n👤 ${data.first_name} (@${data.username || 'sin usuario'})\\n━━━━━━━━━━━━━━\\n${data.text}\\n━━━━━━━━━━━━━━\\nChat ID: ${data.chat_id}`,\n  formatted_client: `✅ ¡Pedido recibido, ${data.first_name}!\\n\\nTu pedido está en preparación.\\nTiempo estimado: 30-45 min 🕐\\n\\nTe notificamos cuando esté en camino.`\n} };"
+        },
+        "id": "bot-04b",
+        "name": "Order Handler",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [-1000, -300],
+        "parameters": { "mode": "runOnceForEachItem" }
+      },
+      {
+        "parameters": {
+          "chatId": "={{ $env.TELEGRAM_COCINA_GROUP_ID }}",
+          "text": "={{ $json.formatted_kitchen }}",
+          "additionalFields": { "parse_mode": "Markdown" }
+        },
+        "id": "bot-04b-kitchen",
+        "name": "Order → Kitchen",
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [-800, -400],
+        "credentials": { "telegramApi": { "id": "TELEGRAM_CREDENTIAL_ID", "name": "Telegram Bot" } }
+      },
+      {
+        "parameters": {
+          "chatId": "={{ $json.chat_id }}",
+          "text": "={{ $json.formatted_client }}",
+          "additionalFields": {}
+        },
+        "id": "bot-04b-client",
+        "name": "Order → Client",
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [-800, -300],
+        "credentials": { "telegramApi": { "id": "TELEGRAM_CREDENTIAL_ID", "name": "Telegram Bot" } }
+      },
+      {
+        "parameters": {
+          "operation": "append",
+          "documentId": { "__rl": true, "value": "={{ $env.GOOGLE_SHEETS_ID }}", "mode": "id" },
+          "sheetName": { "__rl": true, "value": "pedidos", "mode": "name" },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "id_pedido": "={{ $json.order_id }}",
+              "timestamp": "={{ $json.timestamp }}",
+              "chat_id": "={{ $json.chat_id }}",
+              "cliente": "={{ $json.first_name }}",
+              "items_pedidos": "={{ $json.text }}",
+              "estado": "recibido"
+            },
+            "matchingColumns": [],
+            "schema": []
+          },
+          "options": {}
+        },
+        "id": "bot-04b-log",
+        "name": "Log Order",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4,
+        "position": [-800, -200],
+        "credentials": { "googleSheetsOAuth2Api": { "id": "QCXBKHkn1sduOECj", "name": "Google Sheets account" } }
+      },
+
+      {
+        "parameters": {
+          "jsCode": "const data = $input.item.json;\nconst resId = 'RES-' + Date.now().toString().slice(-6);\nconst peopleMatch = data.text.match(/(\\d+)\\s*(personas?|pax|person)/i);\nconst numPeople = peopleMatch ? peopleMatch[1] : 'por confirmar';\nreturn { json: {\n  ...data,\n  res_id: resId,\n  num_personas: numPeople,\n  email_subject: `📅 Nueva reserva — La Fogata (${resId})`,\n  email_body: `<h2>Nueva Reserva — La Fogata</h2><p><b>ID:</b> ${resId}</p><p><b>Cliente:</b> ${data.first_name} (@${data.username || 'sin usuario'})</p><p><b>Mensaje original:</b><br>${data.text}</p><p><b>Personas:</b> ${numPeople}</p><p><b>Chat ID para responder:</b> ${data.chat_id}</p><p><b>Timestamp:</b> ${data.timestamp}</p><hr><p>Responde al cliente directamente por Telegram con su Chat ID.</p>`,\n  client_msg: `📅 ¡Reserva recibida, ${data.first_name}!\\n\\nNuestro equipo la revisará y te confirmará en menos de 2 horas ✅\\n\\n¿Dudas? Escríbenos aquí mismo.`\n} };"
+        },
+        "id": "bot-04c",
+        "name": "Reservation Handler",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [-1000, 0],
+        "parameters": { "mode": "runOnceForEachItem" }
+      },
+      {
+        "parameters": {
+          "sendTo": "={{ $env.GMAIL_DUENO }}",
+          "subject": "={{ $json.email_subject }}",
+          "message": "={{ $json.email_body }}",
+          "options": { "appendAttribution": false }
+        },
+        "id": "bot-04c-email",
+        "name": "Reservation → Owner Email",
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 2,
+        "position": [-800, -100],
+        "credentials": { "gmailOAuth2": { "id": "fZrABQqbULrOHoA3", "name": "Gmail account" } }
+      },
+      {
+        "parameters": {
+          "chatId": "={{ $json.chat_id }}",
+          "text": "={{ $json.client_msg }}",
+          "additionalFields": {}
+        },
+        "id": "bot-04c-client",
+        "name": "Reservation → Client",
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [-800, 0],
+        "credentials": { "telegramApi": { "id": "TELEGRAM_CREDENTIAL_ID", "name": "Telegram Bot" } }
+      },
+      {
+        "parameters": {
+          "operation": "append",
+          "documentId": { "__rl": true, "value": "={{ $env.GOOGLE_SHEETS_ID }}", "mode": "id" },
+          "sheetName": { "__rl": true, "value": "reservas", "mode": "name" },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "id_reserva": "={{ $json.res_id }}",
+              "timestamp": "={{ $json.timestamp }}",
+              "chat_id": "={{ $json.chat_id }}",
+              "cliente": "={{ $json.first_name }}",
+              "num_personas": "={{ $json.num_personas }}",
+              "confirmada": "pendiente",
+              "notas_dueño": "={{ $json.text }}"
+            },
+            "matchingColumns": [],
+            "schema": []
+          },
+          "options": {}
+        },
+        "id": "bot-04c-log",
+        "name": "Log Reservation",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4,
+        "position": [-800, 100],
+        "credentials": { "googleSheetsOAuth2Api": { "id": "QCXBKHkn1sduOECj", "name": "Google Sheets account" } }
+      },
+
+      {
+        "parameters": {
+          "chatId": "={{ $json.chat_id }}",
+          "text": "=Lamentamos mucho lo que viviste, {{ $json.first_name }} 😔\n\nTu mensaje fue recibido y el dueño fue notificado de inmediato. Te contactaremos pronto para resolver esto 🙏\n\nGracias por contárnoslo.",
+          "additionalFields": {}
+        },
+        "id": "bot-04d-client",
+        "name": "Complaint → Client",
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [-1000, 300],
+        "credentials": { "telegramApi": { "id": "TELEGRAM_CREDENTIAL_ID", "name": "Telegram Bot" } }
+      },
+      {
+        "parameters": {
+          "sendTo": "={{ $env.GMAIL_DUENO }}",
+          "subject": "=🚨 QUEJA NUEVA — Atención inmediata — La Fogata",
+          "message": "=<h2 style='color:red'>🚨 QUEJA — Atención Inmediata</h2><p><b>Cliente:</b> {{ $json.first_name }} (@{{ $json.username }})</p><p><b>Mensaje:</b><br><i>{{ $json.text }}</i></p><p><b>Chat ID:</b> {{ $json.chat_id }}</p><p><b>Timestamp:</b> {{ $json.timestamp }}</p><hr><p>Contáctalo directamente por Telegram con su Chat ID.</p>",
+          "options": { "appendAttribution": false }
+        },
+        "id": "bot-04d-email",
+        "name": "Complaint → Owner Email",
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 2,
+        "position": [-800, 300],
+        "credentials": { "gmailOAuth2": { "id": "fZrABQqbULrOHoA3", "name": "Gmail account" } }
+      },
+      {
+        "parameters": {
+          "operation": "append",
+          "documentId": { "__rl": true, "value": "={{ $env.GOOGLE_SHEETS_ID }}", "mode": "id" },
+          "sheetName": { "__rl": true, "value": "escalations", "mode": "name" },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "timestamp": "={{ $json.timestamp }}",
+              "chat_id": "={{ $json.chat_id }}",
+              "cliente": "={{ $json.first_name }}",
+              "tipo_intent": "COMPLAINT",
+              "mensaje_original": "={{ $json.text }}",
+              "canal_notificado": "gmail",
+              "resuelto": "no"
+            },
+            "matchingColumns": [],
+            "schema": []
+          },
+          "options": {}
+        },
+        "id": "bot-04d-log",
+        "name": "Log Complaint",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4,
+        "position": [-800, 400],
+        "credentials": { "googleSheetsOAuth2Api": { "id": "QCXBKHkn1sduOECj", "name": "Google Sheets account" } }
+      },
+
+      {
+        "parameters": {
+          "chatId": "={{ $json.chat_id }}",
+          "text": "=¡Muchísimas gracias {{ $json.first_name }}! 🌟\nNos alegra mucho saber que disfrutaste tu experiencia en La Fogata ❤️\n¡Te esperamos pronto!",
+          "additionalFields": {}
+        },
+        "id": "bot-04e-client",
+        "name": "Feedback → Client",
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [-1000, 600],
+        "credentials": { "telegramApi": { "id": "TELEGRAM_CREDENTIAL_ID", "name": "Telegram Bot" } }
+      },
+      {
+        "parameters": {
+          "operation": "append",
+          "documentId": { "__rl": true, "value": "={{ $env.GOOGLE_SHEETS_ID }}", "mode": "id" },
+          "sheetName": { "__rl": true, "value": "feedback", "mode": "name" },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "timestamp": "={{ $json.timestamp }}",
+              "chat_id": "={{ $json.chat_id }}",
+              "cliente": "={{ $json.first_name }}",
+              "sentimiento": "positivo",
+              "mensaje": "={{ $json.text }}",
+              "respondido": "si"
+            },
+            "matchingColumns": [],
+            "schema": []
+          },
+          "options": {}
+        },
+        "id": "bot-04e-log",
+        "name": "Log Feedback",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4,
+        "position": [-800, 600],
+        "credentials": { "googleSheetsOAuth2Api": { "id": "QCXBKHkn1sduOECj", "name": "Google Sheets account" } }
+      },
+
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "http://host.docker.internal:11434/api/embeddings",
+          "sendBody": true,
+          "contentType": "json",
+          "body": "={{ JSON.stringify({ model: 'nomic-embed-text', prompt: $json.text }) }}",
+          "options": {}
+        },
+        "id": "bot-05",
+        "name": "Embed Query",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [-1000, 900]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "=https://{{ $env.PINECONE_HOST }}/query",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              { "name": "Api-Key", "value": "={{ $env.PINECONE_API_KEY }}" },
+              { "name": "Content-Type", "value": "application/json" }
+            ]
+          },
+          "sendBody": true,
+          "contentType": "json",
+          "body": "={{ JSON.stringify({ vector: $json.embedding, topK: 3, includeMetadata: true, namespace: 'menu' }) }}",
+          "options": {}
+        },
+        "id": "bot-06",
+        "name": "Query Pinecone",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [-800, 900]
+      },
+      {
+        "parameters": {
+          "jsCode": "const pineconeResult = $input.item.json;\nconst matches = pineconeResult.matches || [];\n\nconst bestScore = matches.length > 0 ? (matches[0].score || 0) : 0;\nconst lowConfidence = bestScore < 0.55;\n\nconst context = matches\n  .map(m => m.metadata?.text || '')\n  .filter(t => t.length > 0)\n  .join('\\n\\n---\\n\\n');\n\nconst originalMessage = $('Detect Intent').item.json.text;\nconst firstName = $('Detect Intent').item.json.first_name;\nconst chatId = $('Detect Intent').item.json.chat_id;\nconst intent = $('Detect Intent').item.json.intent;\nconst timestamp = $('Detect Intent').item.json.timestamp;\n\nreturn { json: {\n  chat_id: chatId,\n  first_name: firstName,\n  text: originalMessage,\n  intent,\n  timestamp,\n  bestScore,\n  lowConfidence,\n  context: context || 'No se encontró información relevante en el menú.',\n  prompt: `Eres el asistente virtual de La Fogata, un restaurante colombiano.\\n\\nINFORMACIÓN DISPONIBLE:\\n${context}\\n\\nPREGUNTA DEL CLIENTE (${firstName}):\\n${originalMessage}\\n\\nINSTRUCCIONES:\\n1. Responde SOLO con la información del contexto anterior.\\n2. Si la información no está disponible responde exactamente: ESCALAR: [razón breve]\\n3. Menciona precios en pesos colombianos (COP).\\n4. Sé amigable, conciso y usa máximo 3 párrafos.\\n5. Usa emojis de comida con moderación.\\n6. Responde en español.`\n} };"
+        },
+        "id": "bot-07",
+        "name": "Build RAG Prompt",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [-600, 900],
+        "parameters": { "mode": "runOnceForEachItem" }
+      },
+      {
+        "parameters": {
+          "promptType": "define",
+          "text": "={{ $json.prompt }}"
+        },
+        "id": "bot-08",
+        "name": "LLM Chain",
+        "type": "@n8n/n8n-nodes-langchain.chainLlm",
+        "typeVersion": 1.4,
+        "position": [-400, 900]
+      },
+      {
+        "parameters": { "model": "llama3.2:latest", "options": { "temperature": 0.2 } },
+        "id": "bot-08b",
+        "name": "Ollama Bot",
+        "type": "@n8n/n8n-nodes-langchain.lmOllama",
+        "typeVersion": 1,
+        "position": [-400, 1100],
+        "credentials": { "ollamaApi": { "id": "7G8MbKlUIpL7R1BC", "name": "Ollama account" } }
+      },
+      {
+        "parameters": {
+          "jsCode": "const input = $input.item.json;\nconst rawResponse = input.response || input.text || '';\nconst shouldEscalate = rawResponse.includes('ESCALAR:') || $('Build RAG Prompt').item.json.lowConfidence;\nconst escalateReason = shouldEscalate ? (rawResponse.match(/ESCALAR:\\s*(.+)/)?.[1] || 'Pregunta fuera del alcance del bot') : '';\nreturn { json: {\n  chat_id: $('Detect Intent').item.json.chat_id,\n  first_name: $('Detect Intent').item.json.first_name,\n  text: $('Detect Intent').item.json.text,\n  intent: $('Detect Intent').item.json.intent,\n  timestamp: $('Detect Intent').item.json.timestamp,\n  response: rawResponse,\n  shouldEscalate,\n  escalateReason,\n  bestScore: $('Build RAG Prompt').item.json.bestScore\n} };"
+        },
+        "id": "bot-09",
+        "name": "Parse RAG Response",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [-200, 900],
+        "parameters": { "mode": "runOnceForEachItem" }
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+            "conditions": [{ "id": "c4", "leftValue": "={{ $json.shouldEscalate }}", "rightValue": true, "operator": { "type": "boolean", "operation": "false" } }],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "id": "bot-10",
+        "name": "Auto or Escalate?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2,
+        "position": [0, 900]
+      },
+      {
+        "parameters": {
+          "chatId": "={{ $json.chat_id }}",
+          "text": "={{ $json.response }}",
+          "additionalFields": {}
+        },
+        "id": "bot-11a",
+        "name": "Auto Reply",
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [200, 800],
+        "credentials": { "telegramApi": { "id": "TELEGRAM_CREDENTIAL_ID", "name": "Telegram Bot" } }
+      },
+      {
+        "parameters": {
+          "chatId": "={{ $json.chat_id }}",
+          "text": "=Hola {{ $json.first_name }}, no tengo esa información disponible en este momento 😊\n\nUn momento, voy a conectarte con nuestro equipo para que te ayuden directamente.",
+          "additionalFields": {}
+        },
+        "id": "bot-11b-client",
+        "name": "Escalate → Client",
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [200, 1000],
+        "credentials": { "telegramApi": { "id": "TELEGRAM_CREDENTIAL_ID", "name": "Telegram Bot" } }
+      },
+      {
+        "parameters": {
+          "sendTo": "={{ $env.GMAIL_DUENO }}",
+          "subject": "=⚠️ Escalación bot — La Fogata",
+          "message": "=<h3>El bot no pudo responder esta pregunta</h3><p><b>Cliente:</b> {{ $json.first_name }}</p><p><b>Mensaje:</b> {{ $json.text }}</p><p><b>Razón escalación:</b> {{ $json.escalateReason }}</p><p><b>Score Pinecone:</b> {{ $json.bestScore }}</p><p><b>Chat ID:</b> {{ $json.chat_id }}</p>",
+          "options": { "appendAttribution": false }
+        },
+        "id": "bot-11b-owner",
+        "name": "Escalate → Owner Email",
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 2,
+        "position": [200, 1100],
+        "credentials": { "gmailOAuth2": { "id": "fZrABQqbULrOHoA3", "name": "Gmail account" } }
+      },
+      {
+        "parameters": {
+          "operation": "append",
+          "documentId": { "__rl": true, "value": "={{ $env.GOOGLE_SHEETS_ID }}", "mode": "id" },
+          "sheetName": { "__rl": true, "value": "conversation_memory", "mode": "name" },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "chat_id": "={{ $json.chat_id }}",
+              "timestamp": "={{ $json.timestamp }}",
+              "role": "user",
+              "message": "={{ $json.text }}",
+              "intent": "={{ $json.intent }}",
+              "session_id": "={{ $json.chat_id + '_' + new Date().toISOString().split('T')[0] }}"
+            },
+            "matchingColumns": [],
+            "schema": []
+          },
+          "options": {}
+        },
+        "id": "bot-12",
+        "name": "Save Memory",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4,
+        "position": [400, 900],
+        "credentials": { "googleSheetsOAuth2Api": { "id": "QCXBKHkn1sduOECj", "name": "Google Sheets account" } }
+      }
+    ],
+    "connections": {
+      "Telegram Trigger — Clients": {
+        "main": [[{ "node": "Detect Intent", "type": "main", "index": 0 }]]
+      },
+      "Detect Intent": {
+        "main": [[{ "node": "Route by Intent", "type": "main", "index": 0 }]]
+      },
+      "Route by Intent": {
+        "main": [
+          [{ "node": "Greeting Response", "type": "main", "index": 0 }],
+          [{ "node": "Order Handler", "type": "main", "index": 0 }],
+          [{ "node": "Reservation Handler", "type": "main", "index": 0 }],
+          [{ "node": "Complaint → Client", "type": "main", "index": 0 }, { "node": "Complaint → Owner Email", "type": "main", "index": 0 }, { "node": "Log Complaint", "type": "main", "index": 0 }],
+          [{ "node": "Feedback → Client", "type": "main", "index": 0 }, { "node": "Log Feedback", "type": "main", "index": 0 }],
+          [{ "node": "Embed Query", "type": "main", "index": 0 }]
+        ]
+      },
+      "Order Handler": {
+        "main": [[{ "node": "Order → Kitchen", "type": "main", "index": 0 }, { "node": "Order → Client", "type": "main", "index": 0 }, { "node": "Log Order", "type": "main", "index": 0 }]]
+      },
+      "Reservation Handler": {
+        "main": [[{ "node": "Reservation → Owner Email", "type": "main", "index": 0 }, { "node": "Reservation → Client", "type": "main", "index": 0 }, { "node": "Log Reservation", "type": "main", "index": 0 }]]
+      },
+      "Embed Query": {
+        "main": [[{ "node": "Query Pinecone", "type": "main", "index": 0 }]]
+      },
+      "Query Pinecone": {
+        "main": [[{ "node": "Build RAG Prompt", "type": "main", "index": 0 }]]
+      },
+      "Build RAG Prompt": {
+        "main": [[{ "node": "LLM Chain", "type": "main", "index": 0 }]]
+      },
+      "Ollama Bot": {
+        "ai_languageModel": [[{ "node": "LLM Chain", "type": "ai_languageModel", "index": 0 }]]
+      },
+      "LLM Chain": {
+        "main": [[{ "node": "Parse RAG Response", "type": "main", "index": 0 }]]
+      },
+      "Parse RAG Response": {
+        "main": [[{ "node": "Auto or Escalate?", "type": "main", "index": 0 }]]
+      },
+      "Auto or Escalate?": {
+        "main": [
+          [{ "node": "Auto Reply", "type": "main", "index": 0 }],
+          [{ "node": "Escalate → Client", "type": "main", "index": 0 }, { "node": "Escalate → Owner Email", "type": "main", "index": 0 }]
+        ]
+      },
+      "Auto Reply": {
+        "main": [[{ "node": "Save Memory", "type": "main", "index": 0 }]]
+      },
+      "Escalate → Client": {
+        "main": [[{ "node": "Save Memory", "type": "main", "index": 0 }]]
+      }
+    },
+    "settings": { "executionOrder": "v1" },
+    "staticData": null,
+    "tags": [],
+    "triggerCount": 0,
+    "updatedAt": "2026-04-11T00:00:00.000Z",
+    "versionId": "flow04-bot-v1"
+  },
+  {
+    "id": "flow04Report",
+    "name": "04 - Weekly Report La Fogata",
+    "nodes": [
+      {
+        "parameters": {
+          "rule": {
+            "interval": [{ "field": "weeks", "triggerAtDay": [0], "triggerAtHour": 20, "triggerAtMinute": 0 }]
+          }
+        },
+        "id": "rep-01",
+        "name": "Every Sunday 8PM",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [-1000, 0]
+      },
+      {
+        "parameters": {
+          "operation": "read",
+          "documentId": { "__rl": true, "value": "={{ $env.GOOGLE_SHEETS_ID }}", "mode": "id" },
+          "sheetName": { "__rl": true, "value": "feedback", "mode": "name" },
+          "options": {}
+        },
+        "id": "rep-02",
+        "name": "Read Feedback",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4,
+        "position": [-800, 0],
+        "credentials": { "googleSheetsOAuth2Api": { "id": "QCXBKHkn1sduOECj", "name": "Google Sheets account" } }
+      },
+      {
+        "parameters": {
+          "jsCode": "const feedbackItems = $input.all().map(i => i.json);\nconst oneWeekAgo = new Date();\noneWeekAgo.setDate(oneWeekAgo.getDate() - 7);\n\nconst weekFeedback = feedbackItems.filter(r => {\n  try { return r.timestamp && new Date(r.timestamp) >= oneWeekAgo; } catch(e) { return false; }\n});\n\nconst positivos = weekFeedback.filter(r => (r.sentimiento || '').toLowerCase() === 'positivo').length;\nconst negativos = weekFeedback.filter(r => (r.sentimiento || '').toLowerCase().includes('negat') || r.sentimiento === 'COMPLAINT').length;\n\nconst feedbackText = weekFeedback.length > 0\n  ? weekFeedback.map(r => `[${r.sentimiento || 'N/A'}] ${r.cliente || 'N/A'}: \"${r.mensaje || 'sin mensaje'}\"`).join('\\n')\n  : 'Sin feedback esta semana.';\n\nconst weekStart = oneWeekAgo.toISOString().split('T')[0];\nconst weekEnd = new Date().toISOString().split('T')[0];\n\nreturn [{ json: {\n  totalFeedback: weekFeedback.length,\n  positivos,\n  negativos,\n  feedbackText,\n  weekStart,\n  weekEnd\n} }];"
+        },
+        "id": "rep-03",
+        "name": "Build Report Context",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [-600, 0]
+      },
+      {
+        "parameters": {
+          "promptType": "define",
+          "text": "=Eres el asistente de La Fogata. Analiza el feedback de clientes de esta semana y genera un resumen ejecutivo accionable para el dueño del restaurante.\n\nPERÍODO: {{ $json.weekStart }} al {{ $json.weekEnd }}\nTOTAL FEEDBACK: {{ $json.totalFeedback }} ({{ $json.positivos }} positivos, {{ $json.negativos }} negativos)\n\nDETALLE:\n{{ $json.feedbackText }}\n\nGenera:\n1. RESUMEN DE LA SEMANA (2 oraciones)\n2. PUNTOS FUERTES (qué elogiaron los clientes)\n3. ÁREAS DE MEJORA (qué se puede mejorar)\n4. ACCIÓN RECOMENDADA (1 acción concreta para la próxima semana)\n\nTono: directo, amigable, orientado a acción. Máximo 250 palabras."
+        },
+        "id": "rep-04",
+        "name": "Weekly Summary",
+        "type": "@n8n/n8n-nodes-langchain.chainLlm",
+        "typeVersion": 1.4,
+        "position": [-400, 0]
+      },
+      {
+        "parameters": { "model": "llama3.2:latest", "options": { "temperature": 0.3 } },
+        "id": "rep-04b",
+        "name": "Ollama Report",
+        "type": "@n8n/n8n-nodes-langchain.lmOllama",
+        "typeVersion": 1,
+        "position": [-400, 200],
+        "credentials": { "ollamaApi": { "id": "7G8MbKlUIpL7R1BC", "name": "Ollama account" } }
+      },
+      {
+        "parameters": {
+          "jsCode": "const ctx = $('Build Report Context').first().json;\nconst narrative = ($input.first().json.response || $input.first().json.text || 'Reporte no disponible')\n  .replace(/</g,'&lt;').replace(/>/g,'&gt;')\n  .replace(/\\n/g,'<br>')\n  .replace(/\\*\\*(.*?)\\*\\*/g,'<strong>$1</strong>');\n\nconst html = `<!DOCTYPE html><html><body style=\"margin:0;padding:0;background:#f8f9fa;font-family:'Segoe UI',Arial,sans-serif;\"><table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"padding:32px 16px;\"><tr><td align=\"center\"><table width=\"580\" cellpadding=\"0\" cellspacing=\"0\"><tr><td style=\"background:linear-gradient(135deg,#b91c1c,#dc2626);border-radius:16px 16px 0 0;padding:28px 32px;\"><p style=\"margin:0 0 4px;color:rgba(255,255,255,0.7);font-size:11px;text-transform:uppercase;letter-spacing:.1em;\">Resumen Semanal Automatizado</p><h1 style=\"margin:0 0 6px;color:#fff;font-size:20px;\">🍽️ La Fogata — Informe Semanal</h1><p style=\"margin:0;color:rgba(255,255,255,0.85);font-size:13px;\">${ctx.weekStart} al ${ctx.weekEnd}</p></td></tr><tr><td style=\"background:#fff;padding:24px;\"><table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\"><tr><td width=\"33%\" style=\"padding:0 6px 0 0\"><div style=\"background:#fef2f2;border-radius:10px;padding:14px;text-align:center\"><div style=\"font-size:26px;font-weight:800;color:#b91c1c\">${ctx.totalFeedback}</div><div style=\"font-size:10px;color:#6b7280;text-transform:uppercase;margin-top:3px\">Total feedback</div></div></td><td width=\"33%\" style=\"padding:0 3px\"><div style=\"background:#f0fdf4;border-radius:10px;padding:14px;text-align:center\"><div style=\"font-size:26px;font-weight:800;color:#16a34a\">${ctx.positivos}</div><div style=\"font-size:10px;color:#6b7280;text-transform:uppercase;margin-top:3px\">Positivos</div></div></td><td width=\"33%\" style=\"padding:0 0 0 6px\"><div style=\"background:#fef9c3;border-radius:10px;padding:14px;text-align:center\"><div style=\"font-size:26px;font-weight:800;color:#ca8a04\">${ctx.negativos}</div><div style=\"font-size:10px;color:#6b7280;text-transform:uppercase;margin-top:3px\">A mejorar</div></div></td></tr></table></td></tr><tr><td style=\"background:#fff;padding:0 24px 24px\"><div style=\"background:#f8f9fa;border-left:4px solid #b91c1c;border-radius:0 10px 10px 0;padding:18px\"><p style=\"margin:0 0 10px;font-size:11px;font-weight:700;color:#b91c1c;text-transform:uppercase;letter-spacing:.08em\">Análisis IA — Ollama llama3.2</p><div style=\"font-size:14px;line-height:1.7;color:#374151\">${narrative}</div></div></td></tr><tr><td style=\"background:#1f2937;border-radius:0 0 16px 16px;padding:14px 24px;text-align:center\"><p style=\"margin:0;color:#9ca3af;font-size:11px\">La Fogata Bot · Flow 04 — Portfolio Cristian Silva</p></td></tr></table></td></tr></table></body></html>`;\n\nreturn [{ json: {\n  html,\n  subject: `🌟 La Fogata — Resumen semanal ${ctx.weekStart} al ${ctx.weekEnd} · ${ctx.totalFeedback} feedbacks`\n} }];"
+        },
+        "id": "rep-05",
+        "name": "Build Report HTML",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [-200, 0]
+      },
+      {
+        "parameters": {
+          "sendTo": "={{ $env.GMAIL_DUENO }}",
+          "subject": "={{ $json.subject }}",
+          "message": "={{ $json.html }}",
+          "options": { "appendAttribution": false }
+        },
+        "id": "rep-06",
+        "name": "Send Weekly Report",
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 2,
+        "position": [0, 0],
+        "credentials": { "gmailOAuth2": { "id": "fZrABQqbULrOHoA3", "name": "Gmail account" } }
+      }
+    ],
+    "connections": {
+      "Every Sunday 8PM": {
+        "main": [[{ "node": "Read Feedback", "type": "main", "index": 0 }]]
+      },
+      "Read Feedback": {
+        "main": [[{ "node": "Build Report Context", "type": "main", "index": 0 }]]
+      },
+      "Build Report Context": {
+        "main": [[{ "node": "Weekly Summary", "type": "main", "index": 0 }]]
+      },
+      "Ollama Report": {
+        "ai_languageModel": [[{ "node": "Weekly Summary", "type": "ai_languageModel", "index": 0 }]]
+      },
+      "Weekly Summary": {
+        "main": [[{ "node": "Build Report HTML", "type": "main", "index": 0 }]]
+      },
+      "Build Report HTML": {
+        "main": [[{ "node": "Send Weekly Report", "type": "main", "index": 0 }]]
+      }
+    },
+    "settings": { "executionOrder": "v1" },
+    "staticData": null,
+    "tags": [],
+    "triggerCount": 0,
+    "updatedAt": "2026-04-11T00:00:00.000Z",
+    "versionId": "flow04-report-v1"
+  }
+]

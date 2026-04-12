@@ -1,0 +1,388 @@
+[{
+  "id": "flow04Indexer",
+  "name": "04 - Menu Indexer",
+  "nodes": [
+    {
+      "parameters": { "updates": ["message"] },
+      "id": "idx-01",
+      "name": "Telegram Trigger — Owner",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [-1400, 0],
+      "credentials": { "telegramApi": { "id": "TELEGRAM_CREDENTIAL_ID", "name": "Telegram Bot" } }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [{ "id": "c1", "leftValue": "={{ $json.message.chat.id.toString() }}", "rightValue": "={{ $env.TELEGRAM_OWNER_CHAT_ID }}", "operator": { "type": "string", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "idx-02",
+      "name": "Is Owner?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-1200, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [{ "id": "c2", "leftValue": "={{ $json.message.document?.mime_type || '' }}", "rightValue": "application/pdf", "operator": { "type": "string", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "idx-03",
+      "name": "Is PDF?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-1000, 0]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.message.chat.id }}",
+        "text": "📄 Entendido. Envíame el PDF del menú actualizado y lo indexaré automáticamente.",
+        "additionalFields": {}
+      },
+      "id": "idx-04",
+      "name": "Ask for PDF",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [-800, -200],
+      "credentials": { "telegramApi": { "id": "TELEGRAM_CREDENTIAL_ID", "name": "Telegram Bot" } }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/getFile?file_id={{ $json.message.document.file_id }}",
+        "options": {}
+      },
+      "id": "idx-05",
+      "name": "Get File Info",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-800, 200]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger — Owner').item.json.message.chat.id }}",
+        "text": "⏳ Recibí el PDF. Aplicando OCR y actualizando el menú... esto toma 1-2 minutos.",
+        "additionalFields": {}
+      },
+      "id": "idx-06",
+      "name": "Reply Processing",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [-600, 200],
+      "credentials": { "telegramApi": { "id": "TELEGRAM_CREDENTIAL_ID", "name": "Telegram Bot" } }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.telegram.org/file/bot{{ $env.TELEGRAM_BOT_TOKEN }}/{{ $('Get File Info').item.json.result.file_path }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "pdfData"
+            }
+          }
+        }
+      },
+      "id": "idx-07",
+      "name": "Download PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-400, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://www.googleapis.com/upload/drive/v3/files?uploadType=media&fields=id,name",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Content-Type", "value": "application/pdf" }]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "pdfData",
+        "options": {}
+      },
+      "id": "idx-08",
+      "name": "Upload to Drive",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-200, 200],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "QCXBKHkn1sduOECj", "name": "Google Sheets account" } }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://www.googleapis.com/drive/v3/files/{{ $json.id }}/copy?fields=id,name",
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ JSON.stringify({ name: 'menu_ocr_temp_' + Date.now(), mimeType: 'application/vnd.google-apps.document', parents: [$env.GOOGLE_DRIVE_FOLDER_ID] }) }}",
+        "options": {}
+      },
+      "id": "idx-09",
+      "name": "OCR Copy to Doc",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [0, 200],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "QCXBKHkn1sduOECj", "name": "Google Sheets account" } }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://www.googleapis.com/drive/v3/files/{{ $json.id }}/export?mimeType=text%2Fplain",
+        "options": {
+          "response": {
+            "response": { "responseFormat": "text" }
+          }
+        }
+      },
+      "id": "idx-10",
+      "name": "Export as Text",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [200, 200],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "QCXBKHkn1sduOECj", "name": "Google Sheets account" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rawText = $input.first().json.body || $input.first().json.data || '';\nconst pdfName = 'menu_' + new Date().toISOString().split('T')[0] + '.pdf';\n\nif (!rawText || rawText.length < 50) {\n  return [{ json: { chunks: [], chunkCount: 0, valid: false, error: 'OCR returned empty text' } }];\n}\n\n// Clean OCR artifacts\nconst text = rawText\n  .replace(/\\r\\n/g, '\\n').replace(/\\r/g, '\\n')\n  .replace(/\\n{3,}/g, '\\n\\n')\n  .replace(/\\s{2,}/g, ' ')\n  .trim();\n\nconst lines = text.split('\\n').map(l => l.trim()).filter(l => l.length > 2);\n\nconst chunks = [];\nlet currentCategory = 'GENERAL';\nlet buffer = '';\nlet prices = [];\nlet idx = 0;\n\nfor (const line of lines) {\n  // Detect category headers: ALL CAPS >= 3 chars, or ends with \":\"\n  const isHeader = (/^[A-ZÁÉÍÓÚÑÜ\\s]{4,}$/.test(line) && !/\\d/.test(line)) || (line.length < 35 && line.endsWith(':'));\n  if (isHeader) {\n    if (buffer.trim().length > 10) {\n      chunks.push({\n        id: `chunk_${idx++}`,\n        categoria: currentCategory,\n        texto: `Categoría: ${currentCategory}. ${buffer.trim()}`,\n        precio_detectado: prices.join(', '),\n        fuente: pdfName\n      });\n      buffer = ''; prices = [];\n    }\n    currentCategory = line.replace(/:$/, '').trim();\n  } else {\n    const lineprices = line.match(/\\$[\\s]?[\\d.,]+/g) || [];\n    prices.push(...lineprices);\n    buffer += line + '. ';\n    if (buffer.split(/\\s+/).length > 80) {\n      chunks.push({\n        id: `chunk_${idx++}`,\n        categoria: currentCategory,\n        texto: `Categoría: ${currentCategory}. ${buffer.trim()}`,\n        precio_detectado: prices.join(', '),\n        fuente: pdfName\n      });\n      buffer = ''; prices = [];\n    }\n  }\n}\nif (buffer.trim().length > 10) {\n  chunks.push({ id: `chunk_${idx++}`, categoria: currentCategory, texto: `Categoría: ${currentCategory}. ${buffer.trim()}`, precio_detectado: prices.join(', '), fuente: pdfName });\n}\n\nreturn chunks.map(c => ({ json: { ...c, chunkCount: chunks.length } }));"
+      },
+      "id": "idx-11",
+      "name": "Clean & Structure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst count = items.length;\nif (count < 5) {\n  return [{ json: { valid: false, chunkCount: count, error: 'Solo se extrajeron ' + count + ' chunks — OCR insuficiente' } }];\n}\nreturn items.map(item => ({ json: { ...item.json, valid: true } }));"
+      },
+      "id": "idx-12",
+      "name": "Validate Chunks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [600, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "c3", "leftValue": "={{ $json.valid }}", "rightValue": true, "operator": { "type": "boolean", "operation": "true" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "idx-13",
+      "name": "Enough Chunks?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [800, 200]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_OWNER_CHAT_ID }}",
+        "text": "=❌ No pude leer bien el PDF (solo {{ $json.chunkCount }} secciones detectadas).\n¿Puedes enviarlo con mejor resolución o como texto seleccionable?",
+        "additionalFields": {}
+      },
+      "id": "idx-14",
+      "name": "Reply OCR Error",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1000, 0],
+      "credentials": { "telegramApi": { "id": "TELEGRAM_CREDENTIAL_ID", "name": "Telegram Bot" } }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/embeddings",
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ JSON.stringify({ model: 'nomic-embed-text', prompt: $json.texto }) }}",
+        "options": {}
+      },
+      "id": "idx-15",
+      "name": "Get Embeddings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1000, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst vectors = items.map(item => ({\n  id: item.json.id,\n  values: item.json.embedding,\n  metadata: {\n    text: item.json.texto,\n    categoria: item.json.categoria,\n    precio: item.json.precio_detectado || '',\n    fuente: item.json.fuente,\n    fecha: new Date().toISOString()\n  }\n}));\nreturn [{ json: { vectors, count: vectors.length } }];"
+      },
+      "id": "idx-16",
+      "name": "Prep Pinecone Batch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://{{ $env.PINECONE_HOST }}/vectors/delete",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Api-Key", "value": "={{ $env.PINECONE_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={\"deleteAll\":true,\"namespace\":\"menu\"}",
+        "options": {}
+      },
+      "id": "idx-17",
+      "name": "Clear Pinecone",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1400, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://{{ $env.PINECONE_HOST }}/vectors/upsert",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Api-Key", "value": "={{ $env.PINECONE_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ JSON.stringify({ vectors: $json.vectors, namespace: 'menu' }) }}",
+        "options": {}
+      },
+      "id": "idx-18",
+      "name": "Upsert Pinecone",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1600, 400]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": { "__rl": true, "value": "={{ $env.GOOGLE_SHEETS_ID }}", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "menu_index", "mode": "name" },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "idx-19",
+      "name": "Update menu_index",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1800, 400],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "QCXBKHkn1sduOECj", "name": "Google Sheets account" } }
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://www.googleapis.com/drive/v3/files/{{ $('OCR Copy to Doc').item.json.id }}",
+        "options": {}
+      },
+      "id": "idx-20",
+      "name": "Delete Temp Doc",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2000, 400],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "QCXBKHkn1sduOECj", "name": "Google Sheets account" } }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_OWNER_CHAT_ID }}",
+        "text": "=✅ ¡Menú actualizado exitosamente!\n\n📊 Resumen:\n- {{ $('Validate Chunks').first().json.chunkCount }} chunks indexados en Pinecone\n- Fecha: {{ new Date().toLocaleDateString('es-CO') }}\n\nEl bot ya responde con el menú actualizado.\nPrueba: '¿Tienen opciones veganas?'",
+        "additionalFields": {}
+      },
+      "id": "idx-21",
+      "name": "Success Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [2200, 400],
+      "credentials": { "telegramApi": { "id": "TELEGRAM_CREDENTIAL_ID", "name": "Telegram Bot" } }
+    }
+  ],
+  "connections": {
+    "Telegram Trigger — Owner": {
+      "main": [[{ "node": "Is Owner?", "type": "main", "index": 0 }]]
+    },
+    "Is Owner?": {
+      "main": [
+        [{ "node": "Is PDF?", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Is PDF?": {
+      "main": [
+        [{ "node": "Get File Info", "type": "main", "index": 0 }],
+        [{ "node": "Ask for PDF", "type": "main", "index": 0 }]
+      ]
+    },
+    "Get File Info": {
+      "main": [[{ "node": "Reply Processing", "type": "main", "index": 0 }]]
+    },
+    "Reply Processing": {
+      "main": [[{ "node": "Download PDF", "type": "main", "index": 0 }]]
+    },
+    "Download PDF": {
+      "main": [[{ "node": "Upload to Drive", "type": "main", "index": 0 }]]
+    },
+    "Upload to Drive": {
+      "main": [[{ "node": "OCR Copy to Doc", "type": "main", "index": 0 }]]
+    },
+    "OCR Copy to Doc": {
+      "main": [[{ "node": "Export as Text", "type": "main", "index": 0 }]]
+    },
+    "Export as Text": {
+      "main": [[{ "node": "Clean & Structure", "type": "main", "index": 0 }]]
+    },
+    "Clean & Structure": {
+      "main": [[{ "node": "Validate Chunks", "type": "main", "index": 0 }]]
+    },
+    "Validate Chunks": {
+      "main": [[{ "node": "Enough Chunks?", "type": "main", "index": 0 }]]
+    },
+    "Enough Chunks?": {
+      "main": [
+        [{ "node": "Get Embeddings", "type": "main", "index": 0 }],
+        [{ "node": "Reply OCR Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "Get Embeddings": {
+      "main": [[{ "node": "Prep Pinecone Batch", "type": "main", "index": 0 }]]
+    },
+    "Prep Pinecone Batch": {
+      "main": [[{ "node": "Clear Pinecone", "type": "main", "index": 0 }]]
+    },
+    "Clear Pinecone": {
+      "main": [[{ "node": "Upsert Pinecone", "type": "main", "index": 0 }]]
+    },
+    "Upsert Pinecone": {
+      "main": [[{ "node": "Update menu_index", "type": "main", "index": 0 }]]
+    },
+    "Update menu_index": {
+      "main": [[{ "node": "Delete Temp Doc", "type": "main", "index": 0 }]]
+    },
+    "Delete Temp Doc": {
+      "main": [[{ "node": "Success Reply", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-04-11T00:00:00.000Z",
+  "versionId": "flow04-indexer-v1"
+}]

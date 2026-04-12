@@ -16,6 +16,15 @@ services:
       - N8N_PROTOCOL=http
       - WEBHOOK_URL=http://localhost:5678/
       - N8N_LOG_LEVEL=info
+      # Flow 04 — Restaurant Bot variables (replace with your real values)
+      - TELEGRAM_BOT_TOKEN=YOUR_BOT_TOKEN_HERE
+      - TELEGRAM_OWNER_CHAT_ID=YOUR_OWNER_CHAT_ID_HERE
+      - TELEGRAM_COCINA_GROUP_ID=YOUR_COCINA_GROUP_ID_HERE
+      - PINECONE_API_KEY=YOUR_PINECONE_API_KEY_HERE
+      - PINECONE_HOST=YOUR_PINECONE_HOST_HERE
+      - GMAIL_DUENO=YOUR_OWNER_EMAIL_HERE
+      - GOOGLE_SHEETS_ID=YOUR_SHEETS_ID_HERE
+      - GOOGLE_DRIVE_FOLDER_ID=YOUR_DRIVE_FOLDER_ID_HERE
     volumes:
       - n8n_data:/home/node/.n8n
       - ./flows:/home/node/flows:ro
